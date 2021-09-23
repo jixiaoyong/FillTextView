@@ -16,7 +16,7 @@ class MainActivity : AppCompatActivity() {
         var t = ""
         for (text in fillText.getFillTexts()) {
             t += text
-            t +=","
+            t += "\n"
         }
         tv_fills.text = t.subSequence(0, t.length - 1)
     }
