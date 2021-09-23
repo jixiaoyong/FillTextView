@@ -31,6 +31,9 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     // 编辑字段标记
     private var EDIT_TAG = "<fill>"
 
+    private val editTagRegex = Regex("\\{[\\s\\S]*?\\}")
+    private val splitPlaceholder = arrayListOf<String>()
+
     // 编辑字段替换
     private var EDIT_REPLACEMENT = "【        】"
 
@@ -125,10 +128,17 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     // 背景画笔
     private val mBackgroundPain = Paint().apply {
         strokeWidth = dp2px(1f).toFloat()
-        color = Color.parseColor("#23E03215")
+        color = Color.parseColor("#FFF7F7F7")
 //        color = Color.parseColor("#FFF7F7F7")
         style = Paint.Style.FILL
         isAntiAlias = true
+    }
+
+    // hint画笔
+    private val mHintPain = Paint().apply {
+        color = Color.parseColor("#FFDADCE0")
+        isAntiAlias = true
+        textSize = mTextSize
     }
 
     constructor(context: Context) : super(context) {
@@ -214,7 +224,12 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
      */
     private fun splitTexts() {
         mTextList.clear()
-        val texts = mText.split(EDIT_TAG)
+        editTagRegex.findAll(mText)?.forEach {
+            it.value?.let {
+                splitPlaceholder.add(it.replace("{","").replace("}",""))
+            }
+        }
+        val texts = mText.split(editTagRegex)
         for (i in 0 until texts.size - 1) {
             var text = texts[i]
             if (i > 0) {
@@ -222,7 +237,7 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
             }
             text += mEditStartTag
             mTextList.add(AText(text))
-            mTextList.add(AText(BLANKS, true))
+            mTextList.add(AText(BLANKS, true, i))
         }
         mTextList.add(AText(mEditEndTag + texts[texts.size - 1]))
     }
@@ -269,7 +284,7 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         setMeasuredDimension(width, height)
     }
 
-    override fun draw(canvas: Canvas) {
+    override fun onDraw(canvas: Canvas) {
         clear()
         canvas.save()
         mStartIndex = 0
@@ -284,7 +299,7 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
                 addEditStartPos(aText) // 记录编辑初始位置
 
                 val cs = text.subSequence(mStartIndex, mEndIndex)
-                mOneRowTexts.add(AText(cs.toString(), aText.isFill))
+                mOneRowTexts.add(AText(cs.toString(), aText.isFill,aText.index))
                 mOneRowText.append(cs)
 
                 val textWidth = measureTextLength(mOneRowText.toString())
@@ -335,7 +350,6 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         if (isFocused) {
             drawCursor(canvas)
         }
-        super.draw(canvas)
         canvas.restore()
     }
 
@@ -387,13 +401,6 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         val fm = mNormalPaint.fontMetrics // 文字基准线问题
         var x = 0f
         for (aText in mOneRowTexts) {
-
-
-            canvas.drawText(
-                aText.text, x, getRowHeight() * mCurDrawRow,
-                if (aText.isFill) mFillPaint else mNormalPaint
-            )
-
             val lineStartX = x
             x += measureTextLength(aText.text)
             if (aText.isFill && mUnderlineVisible) {
@@ -411,6 +418,18 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
                     )
                 }
             }
+
+            var drawTextPaint = if (aText.isFill) mFillPaint else mNormalPaint
+            val drawText = if (aText.isFill && aText.text == BLANKS) {
+                drawTextPaint = mHintPain
+                splitPlaceholder.getOrNull(aText.index) ?: aText.text
+            } else {
+                aText.text
+            }
+            canvas.drawText(
+                drawText, lineStartX, getRowHeight() * mCurDrawRow,
+                drawTextPaint
+            )
         }
 
         mCurDrawRow++
@@ -815,7 +834,7 @@ internal class MyInputConnection(
  * @Datetime 2019-04-29 09:27
  *
  */
-internal class AText(text: String, isFill: Boolean = false) {
+internal class AText(text: String, isFill: Boolean = false, var index: Int = -1) {
     // 段落文字
     var text: String = text
 
