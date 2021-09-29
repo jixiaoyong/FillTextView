@@ -1,11 +1,7 @@
 package com.chenlittleping.filltextview
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
-import android.os.Build
+import android.graphics.*
 import android.os.Handler
 import android.text.InputType
 import android.util.AttributeSet
@@ -21,21 +17,18 @@ import java.util.regex.Pattern
 
 /**
  * 文本填空控件
- *
+ * https://github.com/ChenLittlePing/FillTextView
  * @author ChenLittlePing (562818444@qq.com)
  * @Datetime 2019-04-28 15:02
  *
  */
 class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
 
-    // 编辑字段标记
-    private var EDIT_TAG = "<fill>"
-
+    // 编辑字段标记正则匹配规则：{}
     private val editTagRegex = Regex("\\{[\\s\\S]*?\\}")
-    private val splitPlaceholder = arrayListOf<String>()
 
-    // 编辑字段替换
-    private var EDIT_REPLACEMENT = "【        】"
+    // 提取出来的{}中的内容
+    private val splitPlaceholder = arrayListOf<String>()
 
     // 可编辑空白
     private val BLANKS = "        "
@@ -82,6 +75,12 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     // 填写文字颜色
     private var mFillColor = Color.BLACK
 
+    // hint文字颜色
+    private var hintColor = Color.parseColor("#FFDADCE0")
+
+    // hint文字背景颜色
+    private var hintBackgroundColor = Color.parseColor("#FFF7F7F7")
+
     // 光标画笔
     private val mCursorPain = Paint()
 
@@ -118,6 +117,8 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     // 是否显示下划线
     private var mUnderlineVisible = false
 
+    private var mInputType = InputType.TYPE_NULL
+
     // 下划线画笔
     private val mUnderlinePain = Paint().apply {
         strokeWidth = dp2px(1f).toFloat()
@@ -128,15 +129,14 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     // 背景画笔
     private val mBackgroundPain = Paint().apply {
         strokeWidth = dp2px(1f).toFloat()
-        color = Color.parseColor("#FFF7F7F7")
-//        color = Color.parseColor("#FFF7F7F7")
+        color = hintBackgroundColor
         style = Paint.Style.FILL
         isAntiAlias = true
     }
 
     // hint画笔
     private val mHintPain = Paint().apply {
-        color = Color.parseColor("#FFDADCE0")
+        color = hintColor
         isAntiAlias = true
         textSize = mTextSize
     }
@@ -166,6 +166,10 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         mNormalColor = ta.getColor(R.styleable.filled_text_normalColor, Color.BLACK)
         mFillColor = ta.getColor(R.styleable.filled_text_fillColor, Color.BLACK)
         mRowSpace += ta.getDimension(R.styleable.filled_text_rowSpace, 0f)
+        mInputType = ta.getInt(R.styleable.filled_text_android_inputType, InputType.TYPE_NULL)
+        hintColor = ta.getColor(R.styleable.filled_text_hintColor, Color.parseColor("#FFDADCE0"))
+        hintBackgroundColor =
+            ta.getColor(R.styleable.filled_text_hintBackgroundColor, Color.parseColor("#FFF7F7F7"))
         ta.recycle()
     }
 
@@ -174,9 +178,19 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         initCursorPaint()
         initTextPaint()
         initFillPaint()
+        initHintPaint()
+        initHintBackgroundPaint()
         splitTexts()
         initHandler()
         setOnKeyListener(this)
+    }
+
+    private fun initHintPaint() {
+        mHintPain.color = hintColor
+    }
+
+    private fun initHintBackgroundPaint() {
+        mBackgroundPain.color = hintBackgroundColor
     }
 
     /**
@@ -193,9 +207,6 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
      * 初始化文字画笔
      */
     private fun initTextPaint() {
-//        mTextSize = sp2px(mTextSize).toFloat()
-//        mRowSpace = dp2px(mRowSpace).toFloat()
-
         mNormalPaint.color = mNormalColor
         mNormalPaint.textSize = mTextSize
         mNormalPaint.isAntiAlias = true
@@ -226,7 +237,7 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
         mTextList.clear()
         editTagRegex.findAll(mText)?.forEach {
             it.value?.let {
-                splitPlaceholder.add(it.replace("{","").replace("}",""))
+                splitPlaceholder.add(it.replace("{", "").replace("}", ""))
             }
         }
         val texts = mText.split(editTagRegex)
@@ -299,11 +310,12 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
                 addEditStartPos(aText) // 记录编辑初始位置
 
                 val cs = text.subSequence(mStartIndex, mEndIndex)
-                mOneRowTexts.add(AText(cs.toString(), aText.isFill,aText.index))
+                mOneRowTexts.add(AText(cs.toString(), aText.isFill, aText.index))
                 mOneRowText.append(cs)
 
                 val textWidth = measureTextLength(mOneRowText.toString())
                 if (textWidth <= mWidth) {
+                    // left指还剩余的空间宽度，textCount指还可以放多少个字
                     val left = mWidth - textWidth
                     val textCount = left / mOneWordWidth
                     if (mEndIndex < text.length) {
@@ -400,7 +412,7 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
 //        canvas.drawText(mOneRowText.toString(), 0f, getRowHeight()*mCurDrawRow, mNormalPaint)
         val fm = mNormalPaint.fontMetrics // 文字基准线问题
         var x = 0f
-        for (aText in mOneRowTexts) {
+        mOneRowTexts.forEachIndexed { index, aText ->
             val lineStartX = x
             x += measureTextLength(aText.text)
             if (aText.isFill && mUnderlineVisible) {
@@ -411,12 +423,13 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
             }
 
             if (aText.isFill) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    canvas.drawRoundRect(
-                        lineStartX - 10, getRowHeight() * (mCurDrawRow - 1) + fm.descent, x + 10,
-                        getRowHeight() * mCurDrawRow * 1F + fm.descent, 10F, 10F, mBackgroundPain
-                    )
-                }
+                val offset =
+                    if (mOneRowTexts.getOrElse(index - 1) { AText("", false) }.isFill) 0 else 10
+                val roundRect = RectF(
+                    lineStartX - offset, getRowHeight() * (mCurDrawRow - 1) + fm.descent, x + offset,
+                    getRowHeight() * mCurDrawRow * 1F + fm.descent
+                )
+                canvas.drawRoundRect(roundRect, 10F, 10F, mBackgroundPain)
             }
 
             var drawTextPaint = if (aText.isFill) mFillPaint else mNormalPaint
@@ -660,7 +673,8 @@ class FillTextView : View, MyInputConnection.InputListener, View.OnKeyListener {
     }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-        outAttrs.inputType = InputType.TYPE_CLASS_NUMBER
+
+        outAttrs.inputType = mInputType
         outAttrs.imeOptions = EditorInfo.IME_ACTION_DONE
         return MyInputConnection(this, false, this)
     }

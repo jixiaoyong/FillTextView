@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="filled_text">
-        <attr name="filledText" format="string"></attr>
-        <attr name="fillTextSize" format="dimension"></attr>
-        <attr name="normalColor" format="color"></attr>
-        <attr name="fillColor" format="color"></attr>
-        <attr name="rowSpace" format="dimension"></attr>
+        <attr name="filledText" format="string"/>
+        <attr name="fillTextSize" format="dimension"/>
+        <attr name="normalColor" format="color"/>
+        <attr name="fillColor" format="color"/>
+        <!--填充处hint颜色-->
+        <attr name="hintColor" format="color"/>
+        <!--填充处背景颜色-->
+        <attr name="hintBackgroundColor" format="color" />
+        <attr name="rowSpace" format="dimension" />
+        <attr name="android:inputType" />
     </declare-styleable>
 </resources>

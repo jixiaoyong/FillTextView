@@ -14,10 +14,12 @@
             app:layout_constraintTop_toTopOf="parent"
             android:layout_marginLeft="10dp"
             android:layout_marginRight="10dp"
+            android:inputType="number"
             app:fillTextSize="16sp"
+            app:hintBackgroundColor="#ACACAC"
             app:rowSpace="3dp"
             app:fillColor="@android:color/holo_blue_dark"
-            app:filledText="限 {0} ~ {20} 人使用（不含1.2米及以下少儿）"/>
+            app:filledText="限 {   0   } ~ {   20   } 人使用（不含1.2米及以下少儿）"/>
 <!--            app:filledText="大家好，我是&#060;fill&#062;，我来自&#060;fill&#062;。我就是来填个空而已&#060;fill&#062;"/>-->
 
     <Button android:id="@+id/btn"
